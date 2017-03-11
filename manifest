@@ -1,0 +1,38 @@
+groups=$(cat "$__object/parameter/group")
+state=$(cat "$__object/parameter/state")
+
+cd "$__type/files"
+
+if [ -f "$__object/parameter/user" ]; then
+    user=$(cat "$__object/parameter/user")
+else
+    user="$__object_id"
+fi
+
+
+# check for existence first
+for group in $groups; do
+    if [ ! -d "$__files/ssh_group/$group" ]; then
+        echo "Group $group does not exist, aborting" >&2
+        exit 1
+    fi
+    if [ "$(ls "$__files/ssh_group/$group" | wc -l)" -lt 1 ]; then
+        echo "Empty group $group - exiting"
+        exit 1
+    fi
+done
+
+for group in $groups; do
+    # reset $@
+    set --
+
+    cd "$__files/ssh_group/$group"
+
+    for key in *.pub; do
+        set -- "$@" --key
+        set -- "$@" "$(cat "$key")"
+    done
+
+    __ssh_authorized_keys "$user-$group" \
+        --owner "$user" --state "$state" "$@"
+done
